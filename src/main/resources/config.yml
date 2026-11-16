@@ -13,6 +13,13 @@ shop:
   # Multiplicateur appliqué au prix de vente du shop (1.0 = prix du shop)
   sell-multiplier: 1.0
 
+auto-sell:
+  # Vente automatique en continu : dès qu'un item vendable est dans un SellChest
+  # (entonnoir, dropper, plugin, joueur...), il est vendu sans avoir à ouvrir le coffre.
+  enabled: true
+  # Fréquence de vérification en ticks (20 ticks = 1 seconde). 10 = 2 fois par seconde.
+  interval-ticks: 10
+
 protection:
   # Seul le propriétaire (ou sellchest.admin) peut casser son SellChest
   owner-only-break: true

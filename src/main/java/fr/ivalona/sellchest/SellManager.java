@@ -3,11 +3,13 @@ package fr.ivalona.sellchest;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -43,12 +45,17 @@ public final class SellManager {
     private final NamespacedKey ownerKey;
     private final NamespacedKey itemKey;
 
+    private record ChunkKey(UUID world, long key) { }
+
     private final Set<Location> scheduled = new HashSet<>();
+    /** Tous les SellChests des chunks chargés, regroupés par chunk. */
+    private final Map<ChunkKey, Set<Location>> tracked = new HashMap<>();
     private final Map<UUID, Pending> pending = new HashMap<>();
 
     private DecimalFormat format;
     private double multiplier = 1.0;
     private BukkitTask notifyTask;
+    private BukkitTask sweepTask;
     private boolean economyWarned = false;
 
     public SellManager(SellChestPlugin plugin) {
@@ -67,11 +74,64 @@ public final class SellManager {
         if (notifyTask != null) notifyTask.cancel();
         long period = Math.max(1, plugin.getConfig().getLong("notify.interval-seconds", 30)) * 20L;
         notifyTask = Bukkit.getScheduler().runTaskTimer(plugin, this::flushNotifications, period, period);
+
+        // Vente automatique : filet de sécurité qui vend tout item arrivé par n'importe quel moyen
+        if (sweepTask != null) sweepTask.cancel();
+        if (plugin.getConfig().getBoolean("auto-sell.enabled", true)) {
+            long ticks = Math.max(1, plugin.getConfig().getLong("auto-sell.interval-ticks", 10));
+            sweepTask = Bukkit.getScheduler().runTaskTimer(plugin, this::sweepAll, ticks, ticks);
+        }
     }
 
     public void shutdown() {
         if (notifyTask != null) notifyTask.cancel();
+        if (sweepTask != null) sweepTask.cancel();
         flushNotifications();
+    }
+
+    // ------------------------------------------------------------------ suivi des SellChests
+
+    private ChunkKey keyOf(Location loc) {
+        return new ChunkKey(loc.getWorld().getUID(), Chunk.getChunkKey(loc.getBlockX() >> 4, loc.getBlockZ() >> 4));
+    }
+
+    /** Enregistre un SellChest (pose ou chargement de chunk). */
+    public void track(Block block) {
+        Location loc = block.getLocation();
+        tracked.computeIfAbsent(keyOf(loc), k -> new HashSet<>()).add(loc);
+    }
+
+    /** Scanne un chunk chargé et enregistre les SellChests qu'il contient. */
+    public void trackChunk(Chunk chunk) {
+        if (!chunk.isLoaded()) return;
+        ChunkKey key = new ChunkKey(chunk.getWorld().getUID(), chunk.getChunkKey());
+        Set<Location> found = new HashSet<>();
+        for (BlockState state : chunk.getTileEntities(false)) {
+            if (state instanceof Chest chest && readOwner(chest) != null) {
+                found.add(state.getLocation());
+            }
+        }
+        if (found.isEmpty()) tracked.remove(key);
+        else tracked.put(key, found);
+    }
+
+    public void untrackChunk(Chunk chunk) {
+        tracked.remove(new ChunkKey(chunk.getWorld().getUID(), chunk.getChunkKey()));
+    }
+
+    /** À l'activation du plugin : enregistre les SellChests des chunks déjà chargés. */
+    public void trackLoadedChunks() {
+        for (org.bukkit.World world : Bukkit.getWorlds()) {
+            for (Chunk chunk : world.getLoadedChunks()) trackChunk(chunk);
+        }
+    }
+
+    /** Vend le contenu de tous les SellChests suivis. */
+    private void sweepAll() {
+        for (Set<Location> set : tracked.values()) {
+            set.removeIf(loc -> loc.getWorld() == null || !sweep(loc.getBlock()));
+        }
+        tracked.values().removeIf(Set::isEmpty);
     }
 
     public String money(double amount) {
@@ -148,15 +208,16 @@ public final class SellManager {
     }
 
     /** Vend tout ce qui est vendable dans le SellChest et crédite son propriétaire. */
-    public void sweep(Block block) {
-        if (block.getType() != Material.CHEST) return;
-        if (!(block.getState(false) instanceof Chest chest)) return;
+    /** @return false si ce bloc n'est (plus) pas un SellChest. */
+    public boolean sweep(Block block) {
+        if (block.getType() != Material.CHEST) return false;
+        if (!(block.getState(false) instanceof Chest chest)) return false;
         UUID owner = readOwner(chest);
-        if (owner == null) return;
+        if (owner == null) return false;
 
         Inventory inv = chest.getBlockInventory();
         // Sécurité : jamais de vente dans un double coffre
-        if (chest.getInventory().getSize() != inv.getSize()) return;
+        if (chest.getInventory().getSize() != inv.getSize()) return true;
 
         Economy eco = economy();
         if (eco == null) {
@@ -164,7 +225,7 @@ public final class SellManager {
                 economyWarned = true;
                 plugin.getLogger().warning("Aucune économie Vault trouvée : les SellChests ne vendent rien.");
             }
-            return;
+            return true;
         }
 
         ItemStack[] contents = inv.getContents();
@@ -180,18 +241,18 @@ public final class SellManager {
             items += stack.getAmount();
             slots.add(i);
         }
-        if (slots.isEmpty()) return;
+        if (slots.isEmpty()) return true;
 
         int digits = eco.fractionalDigits();
         if (digits < 0) digits = 2;
         total = BigDecimal.valueOf(total * multiplier).setScale(digits, RoundingMode.HALF_UP).doubleValue();
-        if (total <= 0) return;
+        if (total <= 0) return true;
 
         OfflinePlayer ownerPlayer = Bukkit.getOfflinePlayer(owner);
         EconomyResponse response = eco.depositPlayer(ownerPlayer, total);
         if (!response.transactionSuccess()) {
             plugin.getLogger().warning("Dépôt refusé pour " + owner + " : " + response.errorMessage);
-            return; // les items restent dans le coffre
+            return true; // les items restent dans le coffre
         }
 
         for (int slot : slots) inv.setItem(slot, null);
@@ -199,6 +260,7 @@ public final class SellManager {
         Pending p = pending.computeIfAbsent(owner, k -> new Pending());
         p.total += total;
         p.items += items;
+        return true;
     }
 
     // ------------------------------------------------------------------ notifications

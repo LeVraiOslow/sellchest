@@ -21,6 +21,7 @@ public final class SellChestPlugin extends JavaPlugin {
         reloadAll();
 
         getServer().getPluginManager().registerEvents(new SellChestListener(this), this);
+        manager.trackLoadedChunks();
 
         PluginCommand command = getCommand("sellchest");
         if (command != null) {

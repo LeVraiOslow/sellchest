@@ -15,6 +15,7 @@ Le jar est dans build/libs/SellChest-1.0.0.jar -> à mettre dans /plugins.
 - Items vendables = ceux de NexShop avec un "sell-price" > 0 (lus dans plugins/NexShop/categories/*/*.yml).
 - Items non vendables : restent dans le coffre.
 - Double coffre impossible (SellChest <-> coffre normal, dans les deux sens).
+- Vente automatique : tous les SellChests chargés sont vérifiés en continu (config `auto-sell`), sans ouvrir le coffre.
 - Entonnoirs : l'item entre puis est vendu au tick suivant.
 
 ## Ajouter le SellChest au shop NexShop (achat par commande, comme les spawners)

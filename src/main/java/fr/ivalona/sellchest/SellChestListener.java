@@ -14,6 +14,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -61,6 +63,7 @@ public final class SellChestListener implements Listener {
 
         if (placed.getState() instanceof Chest chest) {
             manager.setOwner(chest, player.getUniqueId());
+            manager.track(placed);
             player.sendMessage(plugin.messages().get("placed"));
         }
     }
@@ -132,6 +135,20 @@ public final class SellChestListener implements Listener {
     public void onBlockExplode(BlockExplodeEvent event) {
         if (!plugin.getConfig().getBoolean("protection.explosion-proof", true)) return;
         event.blockList().removeIf(b -> manager.ownerOf(b) != null);
+    }
+
+    // ================================================================ suivi des chunks
+
+    @EventHandler
+    public void onChunkLoad(ChunkLoadEvent event) {
+        org.bukkit.Chunk chunk = event.getChunk();
+        // Au tick suivant : les tile entities sont alors toutes prêtes
+        org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> manager.trackChunk(chunk));
+    }
+
+    @EventHandler
+    public void onChunkUnload(ChunkUnloadEvent event) {
+        manager.untrackChunk(event.getChunk());
     }
 
     // ================================================================ entrée d'items
