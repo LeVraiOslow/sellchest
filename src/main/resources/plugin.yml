@@ -1,0 +1,21 @@
+name: SellChest
+version: '${version}'
+main: fr.ivalona.sellchest.SellChestPlugin
+api-version: '26.2'
+description: Coffres qui revendent automatiquement leur contenu au prix de NexShop.
+depend: [Vault]
+softdepend: [NexShop]
+
+commands:
+  sellchest:
+    description: Gestion des SellChests
+    usage: /<command> <give|reload>
+    aliases: [schest]
+
+permissions:
+  sellchest.use:
+    description: Poser un SellChest
+    default: true
+  sellchest.admin:
+    description: Give, reload, casser les SellChests des autres
+    default: op

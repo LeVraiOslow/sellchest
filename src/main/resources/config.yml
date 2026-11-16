@@ -1,0 +1,53 @@
+# ============================================================
+#  SellChest - configuration
+#  Codes couleur supportés : &a &l ..., &#RRGGBB et MiniMessage
+# ============================================================
+
+shop:
+  # Dossier du plugin de shop (relatif au dossier /plugins). Les prix de vente
+  # sont lus dans <dossier>/categories/*/*.yml (champ "sell-price").
+  folder: "NexShop"
+  # auto = reprend "sell.strict-vanilla-match" de la config NexShop | true | false
+  # true = un item avec nom / lore / enchantement / custom-model-data n'est PAS vendu
+  strict-vanilla-match: auto
+  # Multiplicateur appliqué au prix de vente du shop (1.0 = prix du shop)
+  sell-multiplier: 1.0
+
+protection:
+  # Seul le propriétaire (ou sellchest.admin) peut casser son SellChest
+  owner-only-break: true
+  # Les explosions ne détruisent pas les SellChests
+  explosion-proof: true
+
+notify:
+  # CHAT | ACTIONBAR | NONE  (les ventes sont regroupées pour ne pas spammer)
+  mode: CHAT
+  interval-seconds: 30
+
+currency:
+  pattern: "#,##0.##"
+  # Tu peux recopier le "display" de NexShop ici (ex: "%amount%<glyph:dollars1>")
+  display: "%amount%$"
+
+item:
+  name: "&6&lᴄᴏғғʀᴇ ᴅᴇ ᴠᴇɴᴛᴇ"
+  lore:
+    - "&7Posez-le : tout ce qui y entre est"
+    - "&7revendu automatiquement au prix du shop."
+    - "&7Compatible avec les &eentonnoirs&7."
+    - ""
+    - "&8Les items non vendables restent stockés."
+
+messages:
+  prefix: "&#E87833&lɪᴠᴀʟᴏɴᴀ &7» &r"
+  no-permission: "%prefix%&cVous n'avez pas la permission."
+  reloaded: "%prefix%&eConfiguration rechargée. &7(%count% items vendables chargés)"
+  usage: "%prefix%&cUtilisation : &e/sellchest give [joueur] [quantité] &7| &e/sellchest reload"
+  player-not-found: "%prefix%&cJoueur introuvable."
+  given: "%prefix%&eVous avez donné &6%amount%x SellChest &eà &6%player%&e."
+  received: "%prefix%&eVous avez reçu &6%amount%x SellChest&e."
+  placed: "%prefix%&aSellChest posé ! &7Les items vendables sont revendus automatiquement et crédités sur votre compte."
+  no-double: "%prefix%&cImpossible de former un double coffre avec un SellChest."
+  not-owner: "%prefix%&cCe SellChest appartient à quelqu'un d'autre."
+  sold-chat: "%prefix%&eVos SellChests ont vendu &6%items% items &epour &6%total%&e."
+  sold-actionbar: "&e+%total% &7(%items% items vendus)"
