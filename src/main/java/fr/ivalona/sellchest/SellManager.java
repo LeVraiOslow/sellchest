@@ -257,6 +257,9 @@ public final class SellManager {
 
         for (int slot : slots) inv.setItem(slot, null);
 
+        // Mode NONE : aucune notification, on n'accumule donc rien (ni message, ni mémoire inutile).
+        if ("NONE".equalsIgnoreCase(plugin.getConfig().getString("notify.mode", "NONE"))) return true;
+
         Pending p = pending.computeIfAbsent(owner, k -> new Pending());
         p.total += total;
         p.items += items;
@@ -266,7 +269,7 @@ public final class SellManager {
     // ------------------------------------------------------------------ notifications
 
     private void flushNotifications() {
-        String mode = plugin.getConfig().getString("notify.mode", "CHAT").toUpperCase(Locale.ROOT);
+        String mode = plugin.getConfig().getString("notify.mode", "NONE").toUpperCase(Locale.ROOT);
         Iterator<Map.Entry<UUID, Pending>> it = pending.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, Pending> entry = it.next();

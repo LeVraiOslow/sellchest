@@ -27,8 +27,9 @@ protection:
   explosion-proof: true
 
 notify:
-  # CHAT | ACTIONBAR | NONE  (les ventes sont regroupées pour ne pas spammer)
-  mode: CHAT
+  # NONE (défaut : aucun message à la vente) | CHAT | ACTIONBAR
+  # (en CHAT / ACTIONBAR, les ventes sont regroupées pour ne pas spammer)
+  mode: NONE
   interval-seconds: 30
 
 currency:
